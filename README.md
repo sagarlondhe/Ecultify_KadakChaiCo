@@ -14,7 +14,7 @@ A campaign website where people share chai-break stories. Submissions are checke
 
 ## Requirements
 
-- Node.js 20 LTS recommended (Next.js 14 requires Node.js 18.17 or newer)
+- Node.js 22 (Next.js 14 requires Node.js 18.17 or newer)
 - npm
 
 ## Local setup
@@ -131,6 +131,30 @@ If AI moderation fails or returns an invalid response, the submission is left fo
 | `npx prisma generate` | Generate the Prisma client |
 | `npx prisma migrate deploy` | Apply committed migrations |
 
+## Deploy on Render
+
+The root `render.yaml` defines one Node.js web service with an attached persistent disk for the SQLite database. This keeps the existing database technology and application behavior unchanged. The service uses paid compute and disk resources (currently configured with the `1c-2g` plan) because Render requires a paid web service for persistent disks; review Render's current pricing before creating the resources. It is configured for one instance because the SQLite database and in-memory rate limiter are not shared across instances.
+
+1. Push this repository, including `render.yaml` and `.node-version`, to GitHub.
+2. In Render, choose **New → Blueprint**, connect the GitHub repository, and select the branch containing these deployment files.
+3. Review the Blueprint resources and approve the charges before creating the service. The Blueprint uses the Singapore region, a 1 GB persistent disk mounted at `/var/data`, and Node.js 22.22.0.
+4. When prompted for the unsynced environment variables, set:
+   - `ADMIN_USERNAME`: a new administrator username.
+   - `ADMIN_PASSWORD_HASH`: a bcrypt hash of a strong administrator password. Generate it using the local setup instructions above; do not enter the plain-text password.
+   - `ADMIN_SESSION_SECRET`: a randomly generated secret with at least 32 characters.
+5. Let the first deploy complete. Render runs `prisma migrate deploy` against the mounted SQLite database before starting Next.js. The service's public URL appears in the Render dashboard under **Settings → Domains**.
+6. Smoke-test the deployed URL:
+   - Load the homepage and `/admin/login`; submit a story with a valid email and another with a valid Indian mobile number.
+   - Try invalid email and phone values and confirm validation blocks them. Resubmit a previously used email and phone (including an equivalent formatted phone number) and confirm duplicate-contact errors appear.
+   - Check the story submission result and confirm it appears in the admin dashboard. Confirm approved public result links load when a story is approved.
+   - Check Render logs for startup, migration, API, or database errors. After a restart or redeploy, confirm the prior submissions are still present.
+
+The Blueprint build command is `npm ci --include=dev && npm run prisma:generate && npm run build`; the start command is `npx prisma migrate deploy && npm start`. Development dependencies are included at build time because Prisma CLI is declared as a development dependency.
+
+Render supplies `PORT` at runtime; Next.js listens on that port. The production database URL and AI mock provider are set in the Blueprint. To use a real AI provider, change `AI_PROVIDER` and set `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` as Render environment variables; store the API key as a secret and review the provider's handling of submitted personal data before enabling it.
+
+Email delivery is not implemented in the current project, so email sending cannot be enabled by deployment configuration alone. Email and Indian phone validation, duplicate-contact handling, and the story form are implemented in the existing application. Verify those flows after deployment as described above.
+
 ## Project layout
 
 ```text
@@ -143,7 +167,7 @@ tests/        Vitest tests
 
 ## Notes and limitations
 
-- SQLite is suitable for local development and deployments with a persistent local disk. A hosted, multi-instance deployment needs a persistent database strategy and shared rate-limit storage.
+- SQLite is suitable for local development and this single-instance Render deployment because its database is stored on the attached persistent disk. A multi-instance deployment needs a shared database and shared rate-limit storage.
 - Submission rate limiting is process-local and is not shared across multiple server instances.
 - The admin dashboard currently displays an “Export CSV” link, but the export API route has no handler yet; CSV export is not currently available.
 - The admin session is an HTTP-only signed cookie that expires after eight hours.

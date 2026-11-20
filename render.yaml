@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: kadak-chai-co
+    runtime: node
+    plan: 1c-2g
+    region: singapore
+    numInstances: 1
+    buildCommand: npm ci --include=dev && npm run prisma:generate && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /
+    disk:
+      name: kadak-chai-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: file:/var/data/dev.db
+      - key: AI_PROVIDER
+        value: mock
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
+      - key: ADMIN_SESSION_SECRET
+        sync: false
