@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #faf8f4;
+  --foreground: #371c13;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  min-height: 100vh;
+}
+
+::selection {
+  color: #371c13;
+  background: #ffdd88;
+}
+
+.chai-steam {
+  transform: rotate(12deg);
+  filter: blur(0.5px);
+  animation: chai-drift 3.2s ease-in-out infinite;
+}
+
+.chai-steam-two {
+  animation-delay: 0.8s;
+}
+
+.chai-steam-three {
+  animation-delay: 1.6s;
+}
+
+@keyframes chai-drift {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(5px) rotate(12deg);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: translateY(-5px) rotate(-8deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

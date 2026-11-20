@@ -1,0 +1,36 @@
+{
+  "export_version": 1,
+  "project": "Ecultify_KadakChaiCo",
+  "generated_at": "2026-11-20",
+  "disclosure": "This export contains selected real project prompts and conservative summaries of the project workflow. It does not invent AI responses or tool executions.",
+  "sessions": [
+    {
+      "session_id": "cb8dea99-0410-4bbe-8543-736fbd380280",
+      "summary": "Phase 5: campaign frontend and submission form",
+      "prompt": "I explicitly approve beginning **Phase 5 - Campaign Frontend and Submission Form**.\n\nFollow the approved PROMPT.md and all Phase 1-4 architecture decisions.\n\nScope:\n1. Build the Kadak Chai Co. #MyChaiBreak campaign landing page using Next.js App Router, TypeScript, and Tailwind CSS.\n2. Create a polished, responsive design.\n3. Implement Full name, City, Email/Indian mobile, Story (10-300 characters), and mandatory consent.\n4. Add character count and loading, success, validation, pending-review, and error states.\n5. Connect to POST /api/entries and prevent accidental duplicate submissions.\n6. Never expose private data or technical AI/provider errors.\n7. Keep the page accessible and responsive.\n\nStrict boundaries: do not implement public result pages or admin features, and do not begin Phase 6 or later.",
+      "source": "local session store",
+      "notable_result": "Campaign UI and submission states were implemented and Phase 5 documentation was created."
+    },
+    {
+      "session_id": "942e9062-ee54-4904-bf31-12ee17ccdc4e",
+      "summary": "Phase 7: admin authentication and dashboard",
+      "prompt": "I explicitly approve beginning **Phase 7 - Admin Authentication and Dashboard**.\n\nImplement environment-configured admin login using the approved HMAC-SHA256 signed session architecture. Protect dashboard and APIs server-side. Build filterable/paginated submission metrics and details. Allow approve/reject moderation with optional notes while preserving original AI fields. Add authorization and audit tests.",
+      "source": "local session store",
+      "notable_result": "Admin login, signed cookie sessions, protected dashboard/API routes, and audited overrides were implemented."
+    },
+    {
+      "session_id": "f9f99e66-e1d8-4cb3-bd5c-117f2268847d",
+      "summary": "Phase 8: automated testing and QA",
+      "prompt": "I explicitly approve beginning **Phase 8 - Automated Testing and QA**.\n\nReview missing coverage across submission validation, persistence, AI, public privacy/access, admin authorization, and dashboard behavior. Add mandatory malformed AI parser tests, security/privacy checks, dependency audits, and genuine defect fixes. Run the complete suite and production build. Do not begin deployment or optional improvements.",
+      "source": "local session store",
+      "notable_result": "QA coverage expanded to 83 tests; timeout, public 404, Vitest hooks, and other defects were corrected or documented."
+    },
+    {
+      "session_id": "641c2890-4fda-4278-b639-9f9cd64537fd",
+      "summary": "Create README, AI usage disclosure, and AI session exports",
+      "prompt": "Create README.md with local setup, environment variables, decisions, unfinished work, and hours. Create AI_USAGE.md with tools/models, real prompts, AI mistakes and catches, and hand-written/reworked work. Create AI_SESSIONS.json and an ai-logs/ folder with exported AI chats and a short summary.",
+      "source": "local session store",
+      "notable_result": "This disclosure export was created for the final project submission."
+    }
+  ]
+}
