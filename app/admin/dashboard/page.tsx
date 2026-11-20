@@ -13,8 +13,10 @@ import { ENTRY_STATUS } from '@/lib/validation';
 import {
   ENTRY_CATEGORY_FILTERS,
   ENTRY_STATUS_FILTERS,
+  isEntrySearch,
   isEntryCategoryFilter,
   isEntryStatusFilter,
+  parseEntryDateRange,
 } from '@/lib/entries/filters';
 
 export const dynamic = 'force-dynamic';
@@ -44,6 +46,10 @@ function validPage(value: string | string[] | undefined): number {
   return Number.isSafeInteger(page) && page <= 100000 ? page : 1;
 }
 
+function validString(value: string | string[] | undefined): string {
+  return typeof value === 'string' ? value : '';
+}
+
 function statusLabel(status: string): string {
   if (status === ENTRY_STATUS.PENDING_REVIEW) return 'Pending review';
   return status.charAt(0).toUpperCase() + status.slice(1);
@@ -61,9 +67,30 @@ export default async function AdminDashboardPage({
 
   const status = validStatus(searchParams?.status);
   const category = validCategory(searchParams?.category);
+  const rawSearch = validString(searchParams?.search);
+  const search = rawSearch.trim();
+  const from = validString(searchParams?.from) || null;
+  const to = validString(searchParams?.to) || null;
+  const dateRange = parseEntryDateRange(from, to);
+  const safeSearch = isEntrySearch(search) ? search : '';
+  const safeDateRange = dateRange ?? {};
   const page = validPage(searchParams?.page);
-  const result = await listEntries({ status, category, page, limit: PAGE_SIZE });
+  const result = await listEntries({
+    status,
+    category,
+    search: safeSearch,
+    ...safeDateRange,
+    page,
+    limit: PAGE_SIZE,
+  });
   const totalPages = Math.max(1, result.pagination.totalPages);
+  const exportParams = new URLSearchParams({
+    status,
+    category,
+    ...(safeSearch ? { search: safeSearch } : {}),
+    ...(from && dateRange?.startDate ? { from } : {}),
+    ...(to && dateRange?.endDateExclusive ? { to } : {}),
+  });
 
   return (
     <main className="min-h-screen bg-cream-100 px-4 py-8 sm:px-7 lg:px-10">
@@ -102,12 +129,50 @@ export default async function AdminDashboardPage({
         <section className="mt-8">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-chai-950">Submissions</h2>
+              <h2 className="text-xl font-bold text-chai-950">Database management · Submissions</h2>
               <p className="mt-1 text-sm text-chai-700">
                 Final status is controlled by moderation; AI decisions remain unchanged.
               </p>
             </div>
             <form action="/admin/dashboard" method="get" className="flex flex-wrap items-end gap-2">
+              <div>
+                <label htmlFor="search-filter" className="block text-xs font-semibold text-chai-800">
+                  Search email or phone
+                </label>
+                <input
+                  id="search-filter"
+                  name="search"
+                  type="search"
+                  maxLength={254}
+                  defaultValue={safeSearch}
+                  className="mt-1 min-h-11 rounded-xl border border-chai-300 bg-white px-3 text-sm text-chai-950"
+                  placeholder="Email or phone"
+                />
+              </div>
+              <div>
+                <label htmlFor="from-filter" className="block text-xs font-semibold text-chai-800">
+                  Submitted from
+                </label>
+                <input
+                  id="from-filter"
+                  name="from"
+                  type="date"
+                  defaultValue={dateRange ? from ?? '' : ''}
+                  className="mt-1 min-h-11 rounded-xl border border-chai-300 bg-white px-3 text-sm text-chai-950"
+                />
+              </div>
+              <div>
+                <label htmlFor="to-filter" className="block text-xs font-semibold text-chai-800">
+                  Submitted through
+                </label>
+                <input
+                  id="to-filter"
+                  name="to"
+                  type="date"
+                  defaultValue={dateRange ? to ?? '' : ''}
+                  className="mt-1 min-h-11 rounded-xl border border-chai-300 bg-white px-3 text-sm text-chai-950"
+                />
+              </div>
               <div>
                 <label htmlFor="status-filter" className="block text-xs font-semibold text-chai-800">
                   Filter by final status
@@ -153,7 +218,7 @@ export default async function AdminDashboardPage({
                 Apply
               </button>
               <Link
-                href={`/api/admin/entries/export?status=${encodeURIComponent(status)}&category=${encodeURIComponent(category)}`}
+                href={`/api/admin/entries/export?${exportParams.toString()}`}
                 className="inline-flex min-h-11 items-center rounded-xl border border-chai-300 bg-white px-4 text-sm font-bold text-chai-900 hover:bg-cream-200"
               >
                 Export CSV
@@ -175,6 +240,9 @@ export default async function AdminDashboardPage({
                       <p className="text-sm text-chai-700">
                         {entry.city} · {entry.contact} · Submitted{' '}
                         {entry.createdAt.toLocaleString('en-IN')}
+                      </p>
+                      <p className="mt-1 break-all font-mono text-xs text-chai-600">
+                        Record ID: {entry.id}
                       </p>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -198,6 +266,10 @@ export default async function AdminDashboardPage({
                     <div>
                       <h4 className="text-xs font-bold uppercase tracking-wide text-chai-600">Submitted story</h4>
                       <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-chai-900">{entry.story}</p>
+                      <p className="mt-2 text-xs text-chai-600">
+                        Participation consent: {entry.consent ? 'Yes' : 'No'}
+                        {' · '}Last updated {entry.updatedAt.toLocaleString('en-IN')}
+                      </p>
                     </div>
                     <div className="rounded-xl bg-cream-100 p-4">
                       <h4 className="text-xs font-bold uppercase tracking-wide text-chai-700">
@@ -240,7 +312,14 @@ export default async function AdminDashboardPage({
             <div className="flex gap-2">
               {page > 1 && (
                 <Link
-                  href={`/admin/dashboard?status=${encodeURIComponent(status)}&category=${encodeURIComponent(category)}&page=${page - 1}`}
+                  href={`/admin/dashboard?${new URLSearchParams({
+                    status,
+                    category,
+                    ...(safeSearch ? { search: safeSearch } : {}),
+                    ...(from && dateRange?.startDate ? { from } : {}),
+                    ...(to && dateRange?.endDateExclusive ? { to } : {}),
+                    page: String(page - 1),
+                  }).toString()}`}
                   className="rounded-xl border border-chai-300 bg-white px-4 py-2 text-sm font-semibold text-chai-900 hover:bg-cream-200"
                 >
                   Previous
@@ -248,7 +327,14 @@ export default async function AdminDashboardPage({
               )}
               {page < totalPages && (
                 <Link
-                  href={`/admin/dashboard?status=${encodeURIComponent(status)}&category=${encodeURIComponent(category)}&page=${page + 1}`}
+                  href={`/admin/dashboard?${new URLSearchParams({
+                    status,
+                    category,
+                    ...(safeSearch ? { search: safeSearch } : {}),
+                    ...(from && dateRange?.startDate ? { from } : {}),
+                    ...(to && dateRange?.endDateExclusive ? { to } : {}),
+                    page: String(page + 1),
+                  }).toString()}`}
                   className="rounded-xl border border-chai-300 bg-white px-4 py-2 text-sm font-semibold text-chai-900 hover:bg-cream-200"
                 >
                   Next

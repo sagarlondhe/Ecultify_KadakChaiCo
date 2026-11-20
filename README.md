@@ -49,7 +49,7 @@ A campaign website where people share chai-break stories. Submissions are checke
    > bcrypt.hash('<your-password>', 12).then(console.log)
    ```
 
-   Put the resulting hash in `ADMIN_PASSWORD_HASH`. Escape `$` characters in the `.env` value as `\$`. Generate a session secret with:
+   Put the resulting hash in `ADMIN_PASSWORD_HASH`. Escape `$` characters as `\$` only when required by the local `.env` parser; in Render's environment settings, paste the bcrypt hash exactly as generated, without quotes or backslashes. Never set the plain-text password as a production variable. Generate a session secret with:
 
    ```sh
    node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
@@ -88,6 +88,7 @@ A campaign website where people share chai-break stories. Submissions are checke
 | `POST /api/admin/logout` | End the admin session |
 | `GET /api/admin/entries` | List submissions (requires an admin session) |
 | `PATCH /api/admin/entries/{id}` | Approve or reject a submission (requires an admin session) |
+| `GET /api/admin/entries/export` | Export filtered submissions as CSV (requires an admin session) |
 
 Pending, rejected, and unknown public story IDs do not expose a public story page. Public pages show only a limited approved-story projection; contact details are not public.
 
@@ -142,12 +143,23 @@ The root `render.yaml` defines one Node.js web service with an attached persiste
    - `ADMIN_USERNAME`: a new administrator username.
    - `ADMIN_PASSWORD_HASH`: a bcrypt hash of a strong administrator password. Generate it using the local setup instructions above; do not enter the plain-text password.
    - `ADMIN_SESSION_SECRET`: a randomly generated secret with at least 32 characters.
+   Enter the hash and secret as raw values in Render (no shell escaping or surrounding quotes). If correcting an existing deployment, update these values in the Render service's **Environment** settings and redeploy/restart the service.
 5. Let the first deploy complete. Render runs `prisma migrate deploy` against the mounted SQLite database before starting Next.js. The service's public URL appears in the Render dashboard under **Settings → Domains**.
 6. Smoke-test the deployed URL:
    - Load the homepage and `/admin/login`; submit a story with a valid email and another with a valid Indian mobile number.
    - Try invalid email and phone values and confirm validation blocks them. Resubmit a previously used email and phone (including an equivalent formatted phone number) and confirm duplicate-contact errors appear.
    - Check the story submission result and confirm it appears in the admin dashboard. Confirm approved public result links load when a story is approved.
    - Check Render logs for startup, migration, API, or database errors. After a restart or redeploy, confirm the prior submissions are still present.
+
+The deployed application uses Prisma with SQLite at `file:/var/data/dev.db`; the Render Blueprint mounts the persistent disk at `/var/data`. Keep the service to one instance while using SQLite. The persistent disk survives service restarts and deploys; do not remove or replace it when changing settings. Render environment values and logs are managed in the service dashboard and cannot be verified from this repository alone.
+
+If `/api/admin/login` returns `Authentication is unavailable`, check the Render logs around the request for `Admin authentication is unavailable` and verify all three admin settings:
+
+- `ADMIN_USERNAME` is non-empty.
+- `ADMIN_PASSWORD_HASH` is the complete bcrypt hash (starts with `$2a$`, `$2b$`, or `$2y$` and has no quotes, whitespace, or backslash escapes). The password itself must match that hash.
+- `ADMIN_SESSION_SECRET` is at least 32 characters.
+
+The login API verifies these environment-based credentials and signs an HTTP-only session; authentication does not query SQLite. The generic response can result from missing/malformed credentials or an invalid session secret. Confirm the specific cause in the private Render logs; do not put credentials, hashes, session cookies, or database URLs in logs or support messages.
 
 The Blueprint build command is `npm ci --include=dev && npm run prisma:generate && npm run build`; the start command is `npx prisma migrate deploy && npm start`. Development dependencies are included at build time because Prisma CLI is declared as a development dependency.
 
@@ -169,7 +181,7 @@ tests/        Vitest tests
 
 - SQLite is suitable for local development and this single-instance Render deployment because its database is stored on the attached persistent disk. A multi-instance deployment needs a shared database and shared rate-limit storage.
 - Submission rate limiting is process-local and is not shared across multiple server instances.
-- The admin dashboard currently displays an “Export CSV” link, but the export API route has no handler yet; CSV export is not currently available.
+- The protected admin dashboard supports contact search, submission-date filtering, pagination, full story details, record IDs, and filtered CSV export.
 - The admin session is an HTTP-only signed cookie that expires after eight hours.
 - Keep `.env` and other environment files out of version control. Store production credentials in your deployment's secret manager.
 

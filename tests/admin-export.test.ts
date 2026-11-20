@@ -85,8 +85,23 @@ describe('GET /api/admin/entries/export', () => {
       /attachment; filename="kadak-chai-entries-/
     );
     assert.match(csv, /"submittedAt","name","city","contact","story"/);
+    assert.match(csv, /"id","publicId","submittedAt"/);
     assert.match(csv, /"Export, ""One"""/);
     assert.match(csv, /"'=HYPERLINK\(""https:\/\/example\.test"",""open""\)"/);
+    assert.doesNotMatch(csv, /Export Two/);
+  });
+
+  it('applies contact and date filters to the protected CSV export', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const response = await exportEntriesRoute(
+      request(
+        `/api/admin/entries/export?search=export-one&from=${today}&to=${today}`
+      )
+    );
+    const csv = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.match(csv, /Export, ""One""/);
     assert.doesNotMatch(csv, /Export Two/);
   });
 });

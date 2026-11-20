@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { getAdminSessionFromRequest } from '@/lib/auth/session';
 import { listEntries } from '@/lib/entries/service';
 import {
+  isEntrySearch,
   isEntryCategoryFilter,
   isEntryStatusFilter,
+  parseEntryDateRange,
 } from '@/lib/entries/filters';
 
 export const dynamic = 'force-dynamic';
@@ -28,12 +30,20 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams;
     const status = params.get('status') ?? 'all';
     const category = params.get('category') ?? 'all';
+    const rawSearch = params.get('search') ?? '';
+    const search = rawSearch.trim();
+    const dateRange = parseEntryDateRange(
+      params.get('from'),
+      params.get('to')
+    );
     const page = parsePositiveInteger(params.get('page'), 1);
     const limit = parsePositiveInteger(params.get('limit'), 25);
 
     if (
       !isEntryStatusFilter(status) ||
       !isEntryCategoryFilter(category) ||
+      !isEntrySearch(search) ||
+      !dateRange ||
       page === null ||
       page > 100000 ||
       limit === null ||
@@ -45,7 +55,14 @@ export async function GET(request: Request) {
       );
     }
 
-    const result = await listEntries({ status, category, page, limit });
+    const result = await listEntries({
+      status,
+      category,
+      search,
+      ...dateRange,
+      page,
+      limit,
+    });
     return NextResponse.json({
       success: true,
       metrics: result.metrics,
@@ -57,6 +74,7 @@ export async function GET(request: Request) {
         city: entry.city,
         contact: entry.contact,
         story: entry.story,
+        consent: entry.consent,
         status: entry.status,
         aiDecision: entry.aiDecision,
         aiCategory: entry.aiCategory,
@@ -67,6 +85,7 @@ export async function GET(request: Request) {
         adminUser: entry.adminUser,
         overriddenAt: entry.overriddenAt,
         createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
       })),
     });
   } catch (error) {

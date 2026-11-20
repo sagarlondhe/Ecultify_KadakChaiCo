@@ -55,6 +55,9 @@ export class DuplicateContactError extends Error {
 export interface ListEntriesOptions {
   status?: string;
   category?: string;
+  search?: string;
+  startDate?: Date;
+  endDateExclusive?: Date;
   page?: number;
   limit?: number;
 }
@@ -182,12 +185,31 @@ export async function getEntryByPublicId(publicId: string) {
  * along with dashboard status metrics.
  */
 export async function listEntries(options: ListEntriesOptions = {}) {
-  const { status, category, page = 1, limit = 25 } = options;
+  const {
+    status,
+    category,
+    search,
+    startDate,
+    endDateExclusive,
+    page = 1,
+    limit = 25,
+  } = options;
   const skip = (Math.max(1, page) - 1) * Math.max(1, limit);
 
   const where = {
     ...(status && status !== 'all' ? { status } : {}),
     ...(category && category !== 'all' ? { aiCategory: category } : {}),
+    ...(search
+      ? { contact: { contains: search } }
+      : {}),
+    ...(startDate || endDateExclusive
+      ? {
+          createdAt: {
+            ...(startDate ? { gte: startDate } : {}),
+            ...(endDateExclusive ? { lt: endDateExclusive } : {}),
+          },
+        }
+      : {}),
   };
 
   const [entries, total, approvedCount, rejectedCount, pendingReviewCount] =
@@ -223,11 +245,25 @@ export async function listEntries(options: ListEntriesOptions = {}) {
   };
 }
 
-export async function exportEntries(options: Pick<ListEntriesOptions, 'status' | 'category'> = {}) {
-  const { status, category } = options;
+export async function exportEntries(
+  options: Pick<
+    ListEntriesOptions,
+    'status' | 'category' | 'search' | 'startDate' | 'endDateExclusive'
+  > = {}
+) {
+  const { status, category, search, startDate, endDateExclusive } = options;
   const where = {
     ...(status && status !== 'all' ? { status } : {}),
     ...(category && category !== 'all' ? { aiCategory: category } : {}),
+    ...(search ? { contact: { contains: search } } : {}),
+    ...(startDate || endDateExclusive
+      ? {
+          createdAt: {
+            ...(startDate ? { gte: startDate } : {}),
+            ...(endDateExclusive ? { lt: endDateExclusive } : {}),
+          },
+        }
+      : {}),
   };
 
   return prisma.storyEntry.findMany({

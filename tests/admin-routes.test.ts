@@ -126,6 +126,37 @@ describe('protected admin entries API', () => {
     );
   });
 
+  it('searches contacts and filters by inclusive submission dates', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const response = await GET(
+      adminRequest(
+        `/api/admin/entries?search=pending%40example.com&from=${today}&to=${today}`
+      )
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.entries.length, 1);
+    assert.equal(body.entries[0].name, 'Pending Entry');
+    assert.ok(body.entries[0].id);
+    assert.equal(
+      (
+        await GET(
+          adminRequest('/api/admin/entries?from=2026-02-31&to=2026-03-01')
+        )
+      ).status,
+      400
+    );
+    assert.equal(
+      (
+        await GET(
+          adminRequest('/api/admin/entries?from=2026-03-02&to=2026-03-01')
+        )
+      ).status,
+      400
+    );
+  });
+
   it('records approval and rejection audit data without modifying original AI fields or public policy', async () => {
     const original = {
       aiDecision: 'rejected',

@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { getAdminSessionFromRequest } from '@/lib/auth/session';
 import { exportEntries } from '@/lib/entries/service';
 import {
+  isEntrySearch,
   isEntryCategoryFilter,
   isEntryStatusFilter,
+  parseEntryDateRange,
 } from '@/lib/entries/filters';
 
 export const dynamic = 'force-dynamic';
@@ -28,21 +30,36 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const status = params.get('status') ?? 'all';
   const category = params.get('category') ?? 'all';
-  if (!isEntryStatusFilter(status) || !isEntryCategoryFilter(category)) {
+  const search = (params.get('search') ?? '').trim();
+  const dateRange = parseEntryDateRange(params.get('from'), params.get('to'));
+  if (
+    !isEntryStatusFilter(status) ||
+    !isEntryCategoryFilter(category) ||
+    !isEntrySearch(search) ||
+    !dateRange
+  ) {
     return NextResponse.json(
-      { success: false, error: 'Invalid status or category filter' },
+      { success: false, error: 'Invalid submission filters' },
       { status: 400 }
     );
   }
 
   try {
-    const entries = await exportEntries({ status, category });
+    const entries = await exportEntries({
+      status,
+      category,
+      search,
+      ...dateRange,
+    });
     const columns = [
+      'id',
+      'publicId',
       'submittedAt',
       'name',
       'city',
       'contact',
       'story',
+      'consent',
       'status',
       'aiDecision',
       'aiCategory',
@@ -52,14 +69,18 @@ export async function GET(request: Request) {
       'adminNotes',
       'adminUser',
       'overriddenAt',
+      'updatedAt',
     ];
     const rows = entries.map((entry) =>
       [
+        entry.id,
+        entry.publicId,
         entry.createdAt,
         entry.name,
         entry.city,
         entry.contact,
         entry.story,
+        entry.consent,
         entry.status,
         entry.aiDecision,
         entry.aiCategory,
@@ -69,6 +90,7 @@ export async function GET(request: Request) {
         entry.adminNotes,
         entry.adminUser,
         entry.overriddenAt,
+        entry.updatedAt,
       ]
         .map(csvCell)
         .join(',')
