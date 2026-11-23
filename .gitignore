@@ -20,7 +20,6 @@
 .env.test
 .env.production
 !.env.example
-.env.example
 
 # SQLite Database and journal files
 *.db
